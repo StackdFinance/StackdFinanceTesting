@@ -145,20 +145,6 @@ contract StackdStaking is Ownable {
         }
     }
 
-    function calcPenalty(uint stakeIndex, address user) external view returns (uint){
-        stake memory userStake = user_stakes[user][stakeIndex];
-//        if (user_stakes[user].length == 0) {
-//            user_stakes[user].pop();
-//        }
-//        else {
-//            user_stakes[user][stakeIndex] = user_stakes[user][user_stakes[user].length - 1];
-//            user_stakes[user].pop();
-//        }
-        uint penalty = (userStake.amount * all_pools[userStake.pool].penalty) / DENOMINATOR;
-        return penalty;
-    }
-
-
     function stakedTokens(address user) public view returns (uint) {
         uint totalStake;
         stake[] memory existingStakes = user_stakes[user];

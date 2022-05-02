@@ -182,34 +182,18 @@ contract('Stacked Finance Contract Test', async accounts => {
     it('User Can emergency withdraw stake', async() => {
         let bal_before = await stacked.balanceOf(accounts[0])
 
-        let penalty = await staking.calcPenalty(0, accounts[3]);
-        //console.log("Penalty: ", penalty)
-        console.log("penalty: ", web3.utils.fromWei(penalty.toString(), 'ether'))
-
-        let stakes = await staking.getUserStakes(accounts[3]);
-        console.log("User Stakes Before: ", stakes)
-
-        let time = await web3.eth.getBlock("latest")
-        console.log("BlockTIme:", time.timestamp)
-
         let total_before = await staking.all_pools(0)
         total_before = total_before[3]
-        console.log("Total Staked Before:", web3.utils.fromWei(total_before.toString(), 'ether'))
+        assert.equal(web3.utils.fromWei(total_before.toString(), 'ether').toString(), '1000000')
         let user_bal = await stacked.balanceOf(accounts[3]);
         await staking.emergencyWithdraw(0, {from: accounts[3]});
 
-        stakes = await staking.getUserStakes(accounts[3]);
-        console.log("User Stakes Before: ", stakes)
-
         let total_after = await staking.all_pools(0)
         total_after = total_after[3]
-        console.log("Total Staked After: ", web3.utils.fromWei(total_after.toString(), 'ether'))
+        assert.equal(total_after.toString(), '0');
 
         let staked = await staking.stakedTokens(accounts[3]);
-        console.log("Staked Tokens Acc3 After:", staked.toString());
-
-        stakes = await staking.getUserStakes(accounts[3]);
-        console.log("User Stakes After: ", stakes)
+        assert.equal(staked.toString(), '0')
 
         let bal_after = await stacked.balanceOf(accounts[0]);
         console.log("Staking Wallet Balance Before: ", web3.utils.fromWei(bal_before.toString(), 'ether'));
@@ -219,8 +203,6 @@ contract('Stacked Finance Contract Test', async accounts => {
         console.log("User Wallet Balance Before: ", web3.utils.fromWei(user_bal.toString(), 'ether'));
         user_bal = await stacked.balanceOf(accounts[3]);
         console.log("User Wallet Balance After: ", web3.utils.fromWei(user_bal.toString(), 'ether'));
-
-
     });
 
     it('', async() => {
