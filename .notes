@@ -1,0 +1,33 @@
+Init:
+Npm install
+npm install truffle
+npm install '@truffle/hdwallet-provider'
+npm install chai chai-as-promised
+npm install truffle-assertions
+
+To Test Locally:
+> truffle develop
+> test test/TestFileName.js
+
+- To fork bsc and test
+> ganache-cli --fork https://bsc-dataseed.binance.org/
+
+- Fork BSC and unlock busd whale wallet for transfer
+> ganache-cli --fork https://bsc-dataseed.binance.org/ -u 0x7C9e73d4C71dae564d41F78d56439bB4ba87592f
+ganache-cli --fork https://bsc-dataseed.binance.org/ --accounts=20 -u 0x7C9e73d4C71dae564d41F78d56439bB4ba87592f -u 0x33240c4e60c8FA74054Bfffa4279b0664F5E7190 -u 0x66d66F86A497c145cC9dCE5935423D2266aC32b9 -u 0x1be9A6E7AcEEc91B3524Edd87F4E24461f32803c
+ganache-cli --fork https://divine-divine-sunset.bsc.quiknode.pro/a841c7c631595fc1a8ab02ab0d74541fb97b3849/ --accounts=20 -u 0x7C9e73d4C71dae564d41F78d56439bB4ba87592f -u 0x33240c4e60c8FA74054Bfffa4279b0664F5E7190 -u 0x66d66F86A497c145cC9dCE5935423D2266aC32b9 -u 0x1be9A6E7AcEEc91B3524Edd87F4E24461f32803c
+ganache-cli --fork https://speedy-nodes-nyc.moralis.io/f3f0dfcdc64b3e258220a51f/bsc/mainnet/archive --accounts=20 -u 0x1be9A6E7AcEEc91B3524Edd87F4E24461f32803c
+
+
+(make sure you comment out the provider in truffle-config, need to restart fork every time you test)
+- In other terminal tab:
+>  npx truffle test ./test/Snipe.test.js
+
+
+- To redeploy on rinkeby
+> truffle networks --clean
+> truffle migrate --reset --network develop
+
+
+- To run a specific test file
+truffle test ./test/TestFileName.js --network 'network'

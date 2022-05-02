@@ -1,0 +1,5 @@
+# Project exclude paths
+/node_modules/
+/contracts/LotteryToken.sol
+/build/contracts/Jackpot.json
+/build/contracts/LotteryManager.json
