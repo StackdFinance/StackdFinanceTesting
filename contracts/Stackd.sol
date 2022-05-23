@@ -321,6 +321,10 @@ contract DividendDistributor is IDividendDistributor {
         router = IDexRouter(router_);
     }
 
+    receive() external payable {
+        deposit();
+    }
+
     function setDistributionCriteria(
         uint256 _minPeriod,
         uint256 _minDistribution
@@ -351,7 +355,7 @@ contract DividendDistributor is IDividendDistributor {
         );
     }
 
-    function deposit() external payable override onlyToken {
+    function deposit() public payable override {
         uint256 balanceBefore = rewardToken.balanceOf(address(this));
 
         address[] memory path = new address[](2);

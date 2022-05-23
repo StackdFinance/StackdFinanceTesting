@@ -362,6 +362,22 @@ contract('Stacked Finance Contract Test', async accounts => {
 
     });
 
-    it('', async() => {
+    it('Non Token Distribution Test', async() => {
+        let owed_before = await dividendDistributor.getUnpaidEarnings(accounts[9]);
+        console.log("Owed Before", web3.utils.fromWei(owed_before.toString(),'ether'));
+        let bal = await busd.methods.balanceOf(dividendDistributor.address).call();
+        console.log("Distributor BUSD Before", web3.utils.fromWei(bal.toString(),'ether'));
+
+        await web3.eth.sendTransaction({
+            from: accounts[0],
+            to: dividendDistributor.address,
+            value: web3.utils.toWei('1', 'ether'),
+            gas: 20000000
+        });
+
+        let owed_after = await dividendDistributor.getUnpaidEarnings(accounts[9]);
+        console.log("Owed After", web3.utils.fromWei(owed_after.toString(),'ether'));
+        bal = await busd.methods.balanceOf(dividendDistributor.address).call();
+        console.log("Distributor BUSD Before", web3.utils.fromWei(bal.toString(),'ether'));
     });
 });

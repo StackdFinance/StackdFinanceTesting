@@ -94,10 +94,10 @@ contract('Stacked Finance Contract Test', async accounts => {
     //     );
     // });
 
-    it('Anti-Bot Measures', async() => {
+    it('Anti-Bot Measures Check', async() => {
         await stacked.enableTrading(3, 9500);
         let block = await web3.eth.getBlock('latest');
-        console.log("Enabled Block:", block.number);
+        //console.log("Enabled Block:", block.number);
         await router.methods.swapETHForExactTokens(
             web3.utils.toWei('100', 'ether'),
             [BNB_ADDRESS, stacked.address],
@@ -162,11 +162,12 @@ contract('Stacked Finance Contract Test', async accounts => {
         );
 
         await staking.createStake(0, web3.utils.toWei('1000000', 'ether'), {from: accounts[3]})
-        let acc3_stakes = await staking.getUserStakes(accounts[3]);
-        console.log("Acc3 Stakes", acc3_stakes[0].amount, acc3_stakes[0].stackd_owed, acc3_stakes[0].x_stackd_owed)
-        // assert.equal(acc3_stakes[0], '1000000000000000000000000')
-        // assert.equal(acc3_stakes[3], '5800000000000000000000')
-        // assert.equal(acc3_stakes[4], '6600000000000000000000')
+        let acc3_stakes = await staking.getUserStakeByPool(0, accounts[3]);
+        // console.log("Acc3 Stakes", acc3_stakes[0].amount, acc3_stakes[0].stackd_owed, acc3_stakes[0].x_stackd_owed);
+        // console.log(acc3_stakes)
+        assert.equal(acc3_stakes.amount, '1000000000000000000000000')
+        assert.equal(acc3_stakes.stackd_owed, '5800000000000000000000')
+        assert.equal(acc3_stakes.x_stackd_owed, '6600000000000000000000')
 
         await truffleAssert.reverts(
             staking.createStake(0, web3.utils.toWei('400000', 'ether'), {from: accounts[3]})
@@ -205,9 +206,72 @@ contract('Stacked Finance Contract Test', async accounts => {
         console.log("User Wallet Balance After: ", web3.utils.fromWei(user_bal.toString(), 'ether'));
     });
 
-    it('', async() => {
+    it('Creating multiple stakes in same pool claims pending and resets stake', async() => {
+        let acc3_staked = await staking.stakedTokens(accounts[3]);
+        assert.equal(acc3_staked, 0);
 
+        await staking.createStake(0, web3.utils.toWei('1000000', 'ether'), {from: accounts[3]})
+        acc3_staked = await staking.stakedTokens(accounts[3]);
+        assert.equal(acc3_staked.toString(), '1000000000000000000000000');
+        let acc3_stakes = await staking.getUserStakeByPool(0, accounts[3]);
+        // console.log("Acc3 Stakes", acc3_stakes[0].amount, acc3_stakes[0].stackd_owed, acc3_stakes[0].x_stackd_owed);
+        // console.log(acc3_stakes)
+        assert.equal(acc3_stakes.amount, '1000000000000000000000000')
+        assert.equal(acc3_stakes.stackd_owed, '5800000000000000000000')
+        assert.equal(acc3_stakes.x_stackd_owed, '6600000000000000000000')
+        acc3_staked = await staking.stakedTokens(accounts[3]);
+        assert.equal(acc3_staked.toString(), '1000000000000000000000000')
+
+        let cur_owed = await staking.getCurrentOwed(accounts[3], 0);
+        console.log("Cur Owed", "Stackd", web3.utils.fromWei(cur_owed.owed_stackd), "X_stackd", web3.utils.fromWei(cur_owed.owed_x_stackd));
+
+        await timeMachine.advanceTime(one_day);
+        await timeMachine.advanceBlock();
+
+        cur_owed = await staking.getCurrentOwed(accounts[3], 0);
+        console.log("Cur Owed", "Stackd", web3.utils.fromWei(cur_owed.owed_stackd), "X_stackd", web3.utils.fromWei(cur_owed.owed_x_stackd));
+
+        let stackd_before = await stacked.balanceOf(accounts[3]);
+        let x_stackd_before = await xstackd.balanceOf(accounts[3]);
+        console.log("Balances Before", "Stackd: ", stackd_before.toString(), "XStackd: ", x_stackd_before.toString());
+
+        await staking.createStake(0, web3.utils.toWei('100000', 'ether'), {from: accounts[3]})
+        stackd_before = await stacked.balanceOf(accounts[3]);
+        x_stackd_before = await xstackd.balanceOf(accounts[3]);
+        console.log("Balances After Restake", "Stackd: ", stackd_before.toString(), "XStackd: ", x_stackd_before.toString());
+        acc3_stakes = await staking.getUserStakeByPool(0, accounts[3]);
+        console.log("Acc3 Stakes", acc3_stakes.amount, acc3_stakes.stackd_owed, acc3_stakes.x_stackd_owed);
+        assert.equal(acc3_stakes.amount, '1100000000000000000000000')
+        assert.equal(acc3_stakes.stackd_owed, '6380000000000000000000')
+        assert.equal(acc3_stakes.x_stackd_owed, '7260000000000000000000')
+        acc3_staked = await staking.stakedTokens(accounts[3]);
+        console.log("Acc3 Total", acc3_staked.toString())
+        assert.equal(acc3_staked.toString(), '1100000000000000000000000')
+
+        cur_owed = await staking.getCurrentOwed(accounts[3], 0);
+        console.log("Cur Owed", "Stackd", web3.utils.fromWei(cur_owed.owed_stackd), "X_stackd", web3.utils.fromWei(cur_owed.owed_x_stackd));
     });
+
+    // it('Multiple Users Create Stakes', async() => {
+    //     await stacked.transfer(accounts[6], web3.utils.toWei('1500000', 'ether'));
+    //     await stacked.transfer(accounts[7], web3.utils.toWei('1500000', 'ether'));
+    //     await stacked.transfer(accounts[8], web3.utils.toWei('1500000', 'ether'));
+    //     await stacked.approve(staking.address, web3.utils.toWei('10000000000', 'ether'), {from: accounts[6]});
+    //     await stacked.approve(staking.address, web3.utils.toWei('10000000000', 'ether'), {from: accounts[7]});
+    //     await stacked.approve(staking.address, web3.utils.toWei('10000000000', 'ether'), {from: accounts[8]});
+    //
+    //     await staking.createStake(0, web3.utils.toWei('1000000', 'ether'), {from: accounts[3]})
+    //     await staking.createStake(0, web3.utils.toWei('1000000', 'ether'), {from: accounts[4]})
+    //     await staking.createStake(0, web3.utils.toWei('1000000', 'ether'), {from: accounts[5]})
+    //     await staking.createStake(0, web3.utils.toWei('1000000', 'ether'), {from: accounts[6]})
+        //
+        // let acc_3 = await getUserStakes(accounts[3]);
+        // let acc_4 = await getUserStakes(accounts[4]);
+        // let acc_5 = await getUserStakes(accounts[5]);
+        // let acc_6 = await getUserStakes(accounts[6]);
+    //
+    //
+    // });
 
     it('', async() => {
 
