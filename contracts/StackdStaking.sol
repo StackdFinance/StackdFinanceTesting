@@ -2,11 +2,11 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "./Auth.sol";
 
-contract StackdStaking is Ownable {
+contract StackdStaking is Auth {
     using Counters for Counters.Counter;
 
     struct pool {
@@ -37,9 +37,11 @@ contract StackdStaking is Ownable {
     address public XSTACKD;
     address public staking_wallet;
 
-    uint public constant DENOMINATOR = 10000;
+    bool public freeWithdrawal = false;
 
-    uint[] public active_pools;
+    uint public constant DENOMINATOR = 10000000; // Very large due to small x_stackd_rate
+
+    uint[] public pools_list;
 
     uint[] public empty_pools;
 
@@ -48,10 +50,18 @@ contract StackdStaking is Ownable {
     mapping(address => uint) public total_user_stakes;
 
 
-    constructor(address _STACKD, address _XSTACKD, address _staking_wallet) {
+    constructor(address _STACKD, address _XSTACKD, address _staking_wallet) Auth(msg.sender) {
         STACKD = _STACKD;
         XSTACKD = _XSTACKD;
         staking_wallet = _staking_wallet;
+    }
+
+    function setFreeWithdrawal(bool _freeWithdrawal) external authorized {
+        freeWithdrawal = _freeWithdrawal;
+    }
+
+    function withdrawERC20(address _token, uint _amount) external authorized {
+        require(IERC20(_token).transfer(msg.sender, _amount), "Failed to transfer");
     }
 
     function getUserStakeByPool(uint poolId, address user) external view returns(stake memory) {
@@ -60,17 +70,23 @@ contract StackdStaking is Ownable {
     }
 
     function getActivePools() external view returns(uint[] memory) {
-        return active_pools;
+        return pools_list;
     }
 
     function getPool(uint id) external view returns(pool memory) {
         return all_pools[id];
     }
 
-    function createPool(uint _staking_period, uint _total_x_stackd, uint _total_stackd, uint _wallet_max_stake, uint _stackd_rate, uint _x_stackd_rate, uint _penalty) external onlyOwner {
+    function getSpaceInPool(uint poolId) external view returns(uint) {
+        pool memory targetPool = all_pools[poolId];
+        return targetPool.total_stackd - (targetPool.total_deposited * targetPool.stackd_rate) / DENOMINATOR;
+    }
+
+    // total_stackd, total_x_stackd: the amount of each respectively that will be depsosited to the pool
+    function createPool(uint _staking_period, uint _total_x_stackd, uint _total_stackd, uint _wallet_max_stake, uint _stackd_rate, uint _x_stackd_rate, uint _penalty) external authorized {
         // Transfer & Mint Rewards
         require(IERC20(STACKD).transferFrom(msg.sender, address(this), _total_stackd), "Funding failed");
-        ERC20PresetMinterPauser(XSTACKD).mint(address(this), _total_x_stackd);
+        require(IERC20(XSTACKD).transferFrom(msg.sender, address(this), _total_x_stackd), "XStackd Funding failed");
 
         // Set Pool
         pool memory newPool;
@@ -83,7 +99,7 @@ contract StackdStaking is Ownable {
         newPool.x_stackd_rate = _x_stackd_rate;
         newPool.penalty = _penalty;
 
-        active_pools.push(pool_index.current());
+        pools_list.push(pool_index.current());
         all_pools[pool_index.current()] = newPool;
 
         pool_index.increment();
@@ -94,7 +110,7 @@ contract StackdStaking is Ownable {
 
         // Transfer Rewards
         require(IERC20(STACKD).transfer(msg.sender, owed_stackd), "Stackd Transfer Failed");
-        require(ERC20PresetMinterPauser(XSTACKD).transfer(msg.sender, owed_x_stackd), "XStacked transfer failed");
+        require(IERC20(XSTACKD).transfer(msg.sender, owed_x_stackd), "XStacked transfer failed");
     }
 
     function getCurrentOwed(address user, uint poolId) public view returns(uint owed_stackd, uint owed_x_stackd) {
@@ -120,7 +136,7 @@ contract StackdStaking is Ownable {
 
         pool memory targetPool = all_pools[poolId];
         require(currentStake + stake_amount <= targetPool.wallet_max_stake, "Over Pool Wallet Staking Limit");
-        require(((targetPool.total_deposited + stake_amount) * targetPool.stackd_rate) / 10000 <= targetPool.total_stackd, "Not enough space in pool");
+        require(((targetPool.total_deposited + stake_amount) * targetPool.stackd_rate) / DENOMINATOR <= targetPool.total_stackd, "Not enough space in pool");
 
         all_pools[poolId].total_deposited += stake_amount;
         total_user_stakes[msg.sender] += stake_amount;
@@ -154,7 +170,7 @@ contract StackdStaking is Ownable {
 
         // Transfer Rewards
         require(IERC20(STACKD).transfer(msg.sender, userStake.stackd_owed), "Stackd Transfer Failed");
-        require(ERC20PresetMinterPauser(XSTACKD).transfer(msg.sender, userStake.x_stackd_owed), "XStacked transfer failed");
+        require(IERC20(XSTACKD).transfer(msg.sender, userStake.x_stackd_owed), "XStacked transfer failed");
     }
 
     function emergencyWithdraw(uint poolId) external {
@@ -168,8 +184,10 @@ contract StackdStaking is Ownable {
             total_user_stakes[msg.sender] -= userStake.amount;
 
             // Take Penalty
-            uint penalty = (userStake.amount * all_pools[userStake.pool].penalty) / DENOMINATOR;
-            require(IERC20(STACKD).transferFrom(msg.sender, staking_wallet, penalty), "Penalty Transfer Failed");
+            if (!freeWithdrawal) {
+                uint penalty = (userStake.amount * all_pools[userStake.pool].penalty) / DENOMINATOR;
+                require(IERC20(STACKD).transferFrom(msg.sender, staking_wallet, penalty), "Penalty Transfer Failed");
+            }
 
             // Didnt recieve rewards, remove from total pool deposit
             all_pools[userStake.pool].total_deposited -= userStake.amount;
