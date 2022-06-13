@@ -56,21 +56,22 @@ contract StackdStaking is Auth {
         staking_wallet = _staking_wallet;
     }
 
-    function setFreeWithdrawal(bool _freeWithdrawal) external authorized {
-        freeWithdrawal = _freeWithdrawal;
-    }
-
-    function withdrawERC20(address _token, uint _amount) external authorized {
-        require(IERC20(_token).transfer(msg.sender, _amount), "Failed to transfer");
-    }
-
     function getUserStakeByPool(uint poolId, address user) external view returns(stake memory) {
         stake memory userStake = user_stakes[user][poolId];
         return userStake;
     }
 
-    function getActivePools() external view returns(uint[] memory) {
+    function getPools() public view returns(uint[] memory) {
         return pools_list;
+    }
+
+    function getAllPools() external view returns(pool[] memory) {
+        uint[] memory pools = getPools();
+        pool[] memory staking_pools = new pool[](pools.length);
+        for (uint i = 0; i < pools.length; i++) {
+            staking_pools[i] = all_pools[i];
+        }
+        return staking_pools;
     }
 
     function getPool(uint id) external view returns(pool memory) {
@@ -164,7 +165,6 @@ contract StackdStaking is Auth {
         require(block.timestamp >= userStake.end, "Staking period has not finished");
 
         // Remove stake
-        //TODO: Check This
         delete user_stakes[msg.sender][poolId];
         total_user_stakes[msg.sender] -= userStake.amount;
 
@@ -196,5 +196,13 @@ contract StackdStaking is Auth {
 
     function stakedTokens(address user) public view returns (uint) {
         return total_user_stakes[user];
+    }
+
+    function setFreeWithdrawal(bool _freeWithdrawal) external authorized {
+        freeWithdrawal = _freeWithdrawal;
+    }
+
+    function withdrawERC20(address _token, uint _amount) external authorized {
+        require(IERC20(_token).transfer(msg.sender, _amount), "Failed to transfer");
     }
 }
