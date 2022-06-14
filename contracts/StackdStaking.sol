@@ -19,7 +19,6 @@ contract StackdStaking is Auth {
         uint stackd_rate;
         uint x_stackd_rate;
         uint penalty;
-        bool promotional; // TODO: Add this??
     }
 
     struct stake {
@@ -35,9 +34,10 @@ contract StackdStaking is Auth {
 
     address public STACKD;
     address public XSTACKD;
-    address public staking_wallet;
+    address public staking_wallet = 0x550DbD64c3dA1E285A1598784013d79a84dEd60F;
 
-    bool public freeWithdrawal = false;
+    bool public freeWithdrawal;
+    bool public stakingEnabled;
 
     uint public constant DENOMINATOR = 10000000; // Very large due to small x_stackd_rate
 
@@ -50,10 +50,9 @@ contract StackdStaking is Auth {
     mapping(address => uint) public total_user_stakes;
 
 
-    constructor(address _STACKD, address _XSTACKD, address _staking_wallet) Auth(msg.sender) {
+    constructor(address _STACKD, address _XSTACKD) Auth(msg.sender) {
         STACKD = _STACKD;
         XSTACKD = _XSTACKD;
-        staking_wallet = _staking_wallet;
     }
 
     function getUserStakeByPool(uint poolId, address user) external view returns(stake memory) {
@@ -86,7 +85,7 @@ contract StackdStaking is Auth {
     // total_stackd, total_x_stackd: the amount of each respectively that will be depsosited to the pool
     function createPool(uint _staking_period, uint _total_x_stackd, uint _total_stackd, uint _wallet_max_stake, uint _stackd_rate, uint _x_stackd_rate, uint _penalty) external authorized {
         // Transfer & Mint Rewards
-        require(IERC20(STACKD).transferFrom(msg.sender, address(this), _total_stackd), "Funding failed");
+        require(IERC20(STACKD).transferFrom(msg.sender, address(this), _total_stackd), "Stackd Funding failed");
         require(IERC20(XSTACKD).transferFrom(msg.sender, address(this), _total_x_stackd), "XStackd Funding failed");
 
         // Set Pool
@@ -129,6 +128,7 @@ contract StackdStaking is Auth {
     }
 
     function createStake(uint poolId, uint stake_amount) external {
+        require(stakingEnabled, "Staking is not enabled");
         require(IERC20(STACKD).balanceOf(msg.sender) - stakedTokens(msg.sender) >= stake_amount, "Not enough unstaked tokens");
 
         stake memory existingStake = user_stakes[msg.sender][poolId];
@@ -194,6 +194,12 @@ contract StackdStaking is Auth {
         }
     }
 
+    function emergencyRemoveStake(address user, uint poolId) external authorized {
+        delete user_stakes[msg.sender][poolId];
+        total_user_stakes[msg.sender] -= userStake.amount;
+        all_pools[userStake.pool].total_deposited -= userStake.amount;
+    }
+
     function stakedTokens(address user) public view returns (uint) {
         return total_user_stakes[user];
     }
@@ -204,5 +210,15 @@ contract StackdStaking is Auth {
 
     function withdrawERC20(address _token, uint _amount) external authorized {
         require(IERC20(_token).transfer(msg.sender, _amount), "Failed to transfer");
+    }
+
+    // UnPause
+    function enableStaking() external authorized {
+        staking_enabled = true;
+    }
+
+    // Pause
+    function disableStaking() external authorized {
+        staking_enabled = false;
     }
 }

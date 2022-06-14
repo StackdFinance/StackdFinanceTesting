@@ -270,7 +270,6 @@ contract XSTACKD is IERC20Extended, Auth {
     bool public swapEnabled;
     bool public liquidityEnabled;
 
-
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
     mapping(address => bool) public isFeeExempt;
@@ -290,9 +289,7 @@ contract XSTACKD is IERC20Extended, Auth {
     payable
     Auth(msg.sender)
     {
-
-        //router = IDexRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
-        router = IDexRouter(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D); // Testnet
+        router = IDexRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
 
         isFeeExempt[msg.sender] = true;
         isFeeExempt[marketingFeeReceiver] = true;
@@ -306,6 +303,7 @@ contract XSTACKD is IERC20Extended, Auth {
     }
 
     receive() external payable {}
+
 
     function setLiquidityEnabled(address _pool) external authorized {
         require(!liquidityEnabled, "Liquidity Is already enabled");
